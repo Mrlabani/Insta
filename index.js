@@ -33,9 +33,9 @@ bot.on('message', async (msg) => {
     if (messageText.toLowerCase() === '/start') {
         bot.sendPhoto(
             chatId,
-            'https://i.ibb.co/GFBGb5F/3d35af405aef.jpg',
+            'https://i.ibb.co/5Fss4dy/d069091c66ac.jpg',
             {
-                caption: '🌼 Welcome to Instagram Downloader \nSend me an Instagram video or image link to download it.\n🦋 Join the update channel:',
+                caption: '🌼 Welcome to Instagram Photo Downloader \nSend me an Instagram username to download all their photos.\n🦋 Join the update channel:',
                 reply_markup: {
                     inline_keyboard: [
                         [
@@ -51,34 +51,31 @@ bot.on('message', async (msg) => {
         return;
     }
 
-    // Check if message contains a valid Instagram post URL
-    if (messageText.includes('instagram.com')) {
+    // Check if message is a username (should start with '@')
+    if (messageText.startsWith('@')) {
+        const username = messageText.slice(1); // Remove '@' from username
         try {
-            console.log('Received Instagram URL:', messageText);
+            console.log('Received Instagram username:', username);
 
-            // Inform user that the file is being processed with a sticker
-            const stickerId = 'CAACAgQAAxkBAAEMzLJm483R53GzjAHmbr3ms3iOFSlTqAADFAAClt1hUHmPWNO7Sd_YNgQ'; // Replace with your sticker file ID
-            const stickerMessage = await bot.sendSticker(chatId, stickerId);
-            const stickerMessageId = stickerMessage.message_id;
-
-            // Extract direct URLs (both images and videos) from Instagram post
-            const directUrls = await instagramUrlDirect(messageText);
+            // Extract the user's posts' direct URLs using their username
+            const directUrls = await instagramUrlDirect(`https://instagram.com/${username}`);
             console.log('Direct URLs:', directUrls);
 
             if (!directUrls || !directUrls.url_list || directUrls.url_list.length === 0) {
                 throw new Error('No direct URLs found');
             }
 
-            // Iterate through each URL and handle based on type (image or video)
+            // Iterate through each URL and handle only images
             for (const url of directUrls.url_list) {
-                const response = await axios({
-                    url: url,
-                    method: 'GET',
-                    responseType: 'arraybuffer',
-                });
-
                 if (url.includes('.jpg') || url.includes('.jpeg') || url.includes('.png')) {
-                    // Handle image download and convert to JPG
+                    // Handle image download
+                    const response = await axios({
+                        url: url,
+                        method: 'GET',
+                        responseType: 'arraybuffer',
+                    });
+
+                    // Convert image to JPG if needed
                     const imageBuffer = await sharp(response.data)
                         .jpeg()
                         .toBuffer();
@@ -87,7 +84,7 @@ bot.on('message', async (msg) => {
 
                     // Send the image file with a caption
                     await bot.sendPhoto(chatId, imageBuffer, {
-                        caption: 'Download from Instra Bot:',
+                        caption: `Photo from @${username}:`,
                         reply_markup: {
                             inline_keyboard: [
                                 [
@@ -100,36 +97,17 @@ bot.on('message', async (msg) => {
                         },
                     });
 
-                    console.log('Image and caption sent successfully:', url);
-                } else {
-                    // Handle video download
-                    console.log('Video downloaded successfully:', url);
-
-                    // Send the video file with a button
-                    await bot.sendVideo(chatId, response.data, {
-                        reply_markup: {
-                            inline_keyboard: [
-                                [
-                                    {
-                                        text: 'Join Update Channel',
-                                        url: 'https://t.me/NOOBPrivate',
-                                    },
-                                ],
-                            ],
-                        },
-                    });
-
-                    console.log('Video and button sent successfully:', url);
+                    console.log('Image sent successfully:', url);
                 }
             }
 
-            // Delete the sticker message after sending the video or image
-            await bot.deleteMessage(chatId, stickerMessageId);
+            // Notify user when done
+            await bot.sendMessage(chatId, "All photos have been sent.");
         } catch (error) {
             console.error('Error processing media:', error);
             await bot.sendMessage(
                 chatId,
-                "We're currently experiencing technical issues, we'll resolve this as soon as possible. Thank you for your understanding!"
+                "We're currently experiencing technical issues. Please check the username and try again!"
             );
         }
         return;
